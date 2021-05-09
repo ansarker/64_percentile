@@ -1,34 +1,34 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from shutil import rmtree
+import os
+from PIL import ImageFilter
 import numpy as np
 from PIL import Image
-from PIL import ImageFilter
-import os
-from shutil import rmtree
-import matplotlib.pyplot as plt
-import pandas as pd
-from scipy.misc import toimage
+Image.MAX_IMAGE_PIXELS = 9331200001
 
-def stitch(input_dir, output_dir, total_grid, name):
+
+def stitch(input_dir, output_dir, total_grid, col, row, crop_right, crop_bottom, name):
     images = []
-    unique_name = []
     for img in os.listdir(input_dir):
         images.append(img)
-        num, format = img.split('.')
-        # num = num[1:]
+        img_ = img.split('_', 1)[1]
+        num, format = img_.split('.')
 
-    # # Sorting image list using 2nd occurance of _ to .png 
     images.sort(key=lambda x: int(x[x.find('_') + len('_'): x.rfind('.png')]))
 
     list_image = []
     for ii in range(len(images)):
         # Iterates through number of grid images for each image
         for jj in range(total_grid+1):
+            img__ = img.split('_', 1)[0] or ""
             num, format = img.split('.')
-            if images[ii] == '_' + str(jj) + '.' + format:
+            if images[ii] == f'{img__}_{jj}.{format}':
                 print('Image: {}'.format(images[ii]))
                 list_image.append(os.path.join(input_dir, images[ii]))
 
-    comb_width = int(513 * 52)
-    comb_height = int(513 * 40)
+    comb_width = int(513 * col)
+    comb_height = int(513 * row)
 
     new_im = Image.new('RGB', (comb_width, comb_height))
 
@@ -38,28 +38,34 @@ def stitch(input_dir, output_dir, total_grid, name):
         image = Image.open(img)
         im = np.array(image)
         image = Image.fromarray(im)
-        # image = toimage(image)
         new_im.paste(image, (x_offset, y_offset))
         x_offset += image.size[0]
         if x_offset == comb_width:
             x_offset = 0
             y_offset += image.size[0]
-    
-    new_im.save(output_dir + '/'+ name + '.' + format)
+
+    new_im = new_im.crop((0, 0, crop_right, crop_bottom))
+    new_im.save(output_dir + '/' + name + '.' + format)
+    print(f"finish stitching {name}...")
 
 
 if __name__ == "__main__":
 
-    district = 'Manikganj'
+    district = 'Naogaon'
+    num_image = 4830
+    col, row = 70, 69
+    crop_right, crop_bottom = 35781, 34973
+
     input_org = f"BD/{district}/before_stitch/original"
-    output_org = f"BD/{district}/after_stitch/original"
     input_pred = f"BD/{district}/before_stitch/prediction"
-    output_pred = f"BD/{district}/after_stitch/prediction"
-    
-    if os.path.exists(output_org) and os.path.exists(output_pred):
+    output_dir = f'BD/{district}/cropped/'
+
+    if os.path.exists(output_dir):
         pass
     else:
-        os.makedirs(output_org)
-        os.makedirs(output_pred)
+        os.makedirs(output_dir)
 
-    stitch(input_dir, output_dir, 2080, district)
+    stitch(input_org, output_dir, num_image, col, row,
+           crop_right, crop_bottom, f'Input_{district}')
+    stitch(input_pred, output_dir, num_image, col, row,
+           crop_right, crop_bottom, f'Predict_{district}')
